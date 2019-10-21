@@ -1,0 +1,39 @@
+description: |
+  Fail if commit sha passed in is not present in branch
+  Useful to force engineers to merge master after huge breaking changes.
+
+parameters:
+  commit-sha:
+    description: |
+      The SHA to look for. If this is empty the build will not be failed.
+    type: string
+    default: .*
+  custom-error-message:
+    description: The error message to fail with if git is directory.
+    type: string
+    default: Please merge master into your branch
+
+steps:
+  - run:
+      name: Swissknife - Force branch update
+      command: |
+        if [ -z "$BASH" ]; then
+          echo Bash not installed.
+          exit 1
+        fi
+        git status >/dev/null 2>&1 || { echo >&2 "Not in a git directory or no git"; exit 1; }
+
+        commit_sha="<< parameters.commit-sha >>"
+        custom_error_message="<< parameters.custom-error-message >>"
+        if [[ "$commit_sha" == "" ]]; then
+          echo "No commit SHA set to check for";
+          exit 0;
+        fi
+
+        current_branch=$(git symbolic-ref --short HEAD);
+        is_in_branch=$(git branch $current_branch --contains $commit_sha || echo "failfailfail")
+
+        if [[ "$is_in_branch" == "failfailfail" ]]; then
+          echo "$custom_error_message";
+          exit 1;
+        fi
